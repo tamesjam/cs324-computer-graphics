@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+	 <link rel="stylesheet" type="text/css" href="styles.css" />
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>CS324 Coursework</title>
+  <style>
+      #blocker {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0,0,0,0.5);
+      }
+
+      #click {
+        position: relative;
+        width: 90%;
+        height: 70%;
+
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+
+        font-family: myFirstFont;
+        text-align: center;
+        font-size: 20px;
+        color: white;
+
+        border-style: solid;
+        border-color: grey;
+        border-radius: 30px;
+        border-width: 1px;
+
+        margin: 100px;
+
+        box-shadow: inset 0 0 2000px rgba(255, 255, 255, .5);
+        filter: blur(0.5px);
+      }
+
+
+
+      #how_play {
+        position: relative;
+        width: 50%;
+        height: 10%;
+
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+
+        text-align: center;
+        font-size: 20px;
+        color: white;
+        cursor: pointer;
+
+        border-bottom: 2px solid white;
+      }
+
+      #instructions {
+        display: block;
+      }
+    </style>
+</head>
+<body>
+  <div id="blocker">
+    <div id="click">
+      <p style="font-size:50px">
+        The AMG Experience
+      </p>
+      <p style="font-size:30px">
+       Rev your engines and get ready for the time of your life!
+      </p>
+      <div id="how_play">
+        <p>How to play</p>
+      </div>
+      <div id="instructions">
+        <p>The aim of the game is customising your car and racing around our customised track to achieve the fastest time possible!</p>
+      </div>
+      <div id="how_play">
+        <p>Credits</p>
+      </div>
+      <div id="instructions">
+        <p>Lead Developer - James Tam</p>
+        <p>Student ID - 1913904</p>
+      </div>
+    </div>
+  </div>
+
+	<script src="./node_modules/three/build/three.min.js"></script>
+  <script src="./node_modules/three/examples/js/loaders/GLTFLoader.js"></script>
+  <script src="./node_modules/three/examples/js/controls/OrbitControls.js"></script>
+    <script src="./node_modules/three/examples/js/misc/Gyroscope.js"></script>
+    <script type="module">
+      let scene, camera, renderer;
+      let car_model, mixer, actions, anims;
+      let main_menu = true, fog = false; // Check if user is in main menu still - Default true
+      let sound;
+
+      let controls; // Orbit controls
+      let controls_value = 1; // Switching between fixed and free view - 1 & 2
+
+      let audioContext;
+
+      var x_camera = 900; // Set camera position in world coordinates
+  	  var y_camera = 600;
+  	  var z_camera = 0;
+      var camera_vector = new THREE.Vector3(x_camera, y_camera, z_camera);
+
+  	  var x_look = -600; // Set initial look-at position (third-person view)
+  	  var y_look = 0;
+  	  var z_look = -80;
+      var look_vector = new THREE.Vector3(x_look, y_look, z_look);
+
+      var rotation = 0; // Rotation amount during main menu
+
+      // Initialise car movement parameters
+      const controlKeys = {
+        forwards: false,
+        backwards: false,
+        right: false,
+        left: false
+      };
+
+      // Initialise car's initial position
+      var x_car = -30;
+      var y_car = 96;
+      var z_car = 0;
+
+      // Third person car position
+      var x_third_person = x_camera + 200;
+      var y_third_person = y_camera;
+      var z_third_person = z_camera - 50;
+      var third_person_vector = new THREE.Vector3(x_third_person, y_third_person, z_third_person);
+
+      // Speed (rate of increase to car position)
+      var increment = 0;
+      var steering = 10;
+
+      // Road resistance, decrements 'increment' variable
+      const FORWARD_RESISTANCE = 0.22;
+      const BACKWARDS_RESISTANCE = 0.25;
+
+      init();
+      animate();
+
+      function init() {
+
+        // Set the camera
+        camera = new THREE.PerspectiveCamera(60,window.innerWidth/window.innerHeight,0.1,100000);
+        camera.position.set(camera_vector);
+        camera.lookAt(look_vector);
+
+        // Set the WebGL Renderer
+        renderer = new THREE.WebGLRenderer({antialias:true});
+        renderer.setSize(window.innerWidth,window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        renderer.outputEncoding = THREE.sRGBEncoding;
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMapSoft = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+        // Set the main menu - pause game/read instructions
+        const blocker = document.getElementById( 'blocker' );
+        const click = document.getElementById( 'click' );
+        const how_play = document.getElementById('how_play');
+        const instructions = document.getElementById('instructions');
+
+        if(!main_menu) {
+          blocker.style.display = 'none';
+        }
+        click.addEventListener( 'click', function () {
+          blocker.style.display = 'none';
+          main_menu = false;
+
+          audioStarted();
+
+          // Adding sounds
+          const audioListener = new THREE.AudioListener();
+          camera.add(audioListener);
+          sound = new THREE.Audio(audioListener);
+          scene.add(sound);
+          const audioLoader = new THREE.AudioLoader();
+
+          audioLoader.load('./assets/sounds/travis.mp3', function(buffer) {
+            sound.setBuffer(buffer);
+            sound.setLoop(true);
+            sound.setVolume(1);
+            sound.play();
+          },  function ( xhr ) {
+              console.log( (xhr.loaded / xhr.total * 100) + '% loaded'
+          );
+            }, function ( err ) {
+              console.log('An error occured');
+            }
+          );
+        });
+
+        // Set the controls
+        controls = new THREE.OrbitControls(camera, renderer.domElement);
+
+        controls.addEventListener( 'lock', function () {
+          click.style.display = 'none';
+          blocker.style.display = 'none';
+
+        });
+
+        // controls.addEventListener( 'unlock', function () {
+        //   blocker.style.display = 'block';
+        //   click.style.display = '';
+        // });
+
+        controls.rotateSpeed *= 0.2;
+        controls.minDistance = 100;
+        controls.maxDistance = 7000;
+        controls.zoomSpeed = 6;
+        controls.enablePan = true;
+        controls.screenSpacePanning = true;
+
+        controls.mouseButtons = {
+          LEFT: THREE.MOUSE.ROTATE,
+          MIDDLE: THREE.MOUSE.DOLLY,
+          RIGHT: THREE.MOUSE.PAN
+        }
+        controls.update();
+
+        document.addEventListener("keydown", keydown, false);
+        document.addEventListener("keyup", keyup, false);
+        window.addEventListener( 'resize', onWindowResize );
+        
+        // Set the scene
+        scene = new THREE.Scene();
+
+        // Set the skybox background setting - load 6 faces of box
+        let materialArray = [];
+        let texture_ft = new THREE.TextureLoader().load( 'image/humble_ft.jpg');
+        let texture_bk = new THREE.TextureLoader().load( 'image/humble_bk.jpg');
+        let texture_up = new THREE.TextureLoader().load( 'image/humble_up.jpg');
+        let texture_dn = new THREE.TextureLoader().load( 'image/humble_dn.jpg');
+        let texture_rt = new THREE.TextureLoader().load( 'image/humble_rt.jpg');
+        let texture_lf = new THREE.TextureLoader().load( 'image/humble_lf.jpg');
+          
+        materialArray.push(new THREE.MeshBasicMaterial( { map: texture_ft }));
+        materialArray.push(new THREE.MeshBasicMaterial( { map: texture_bk }));
+        materialArray.push(new THREE.MeshBasicMaterial( { map: texture_up }));
+        materialArray.push(new THREE.MeshBasicMaterial( { map: texture_dn }));
+        materialArray.push(new THREE.MeshBasicMaterial( { map: texture_rt }));
+        materialArray.push(new THREE.MeshBasicMaterial( { map: texture_lf }));
+   
+        for (let i = 0; i < 6; i++) {
+           materialArray[i].side = THREE.BackSide;
+        }
+        let skyboxGeo = new THREE.BoxGeometry( 43000, 43000, 43000);
+        let skybox = new THREE.Mesh( skyboxGeo, materialArray );
+
+        // Set the lights
+        const light = new THREE.DirectionalLight( 0xffffff, 1.5);
+        light.position.set( 9000, 4000, 4500 );
+        light.castShadow = true;
+        light.shadow.mapSize.width = 2048;
+        light.shadow.mapSize.height = 1024;
+        light.shadow.camera.near = 0.1;2
+        light.shadow.camera.far = 19000;
+        light.shadow.camera.fov = 60;
+        light.shadow.camera.left = -9000; // fit light to plane
+        light.shadow.camera.right = 9000;
+        light.shadow.camera.top = 2600;
+        light.shadow.camera.bottom = -9000;
+        light.shadow.radius = 6;
+
+        // Set the plane
+        var texture = new THREE.TextureLoader().load('assets/images/racetrack.jpg');
+        var geometry = new THREE.PlaneGeometry(15000, 15000, 1000, 1);
+        var material = new THREE.MeshPhongMaterial({ color: 0xffffff, map: texture});
+        let plane = new THREE.Mesh(geometry, material);
+        plane.material.map.wrapS = THREE.RepeatWrapping;
+        plane.material.map.wrapT = THREE.RepeatWrapping;
+        plane.material.map.encoding = THREE.sRGBEncoding;
+        plane.castShadow = true;
+        plane.receiveShadow = true;
+        plane.rotation.x = -Math.PI / 2;
+
+        // Loading model
+        const loader = new THREE.GLTFLoader();
+        loader.load('./assets/blender/car_blend_3.glb', object => {
+          car_model = object.scene;
+          car_model.scale.set(70, 70, 70);
+          car_model.traverse(c => {
+            c.castShadow = true;
+          });
+
+          car_model.position.x = x_car;
+          car_model.position.y = y_car;
+
+          mixer = new THREE.AnimationMixer(object);
+          actions = [];
+          // const action = mixer.clipAction(object.animations[0]);
+          // action.play();
+          // actions.push(action);
+
+          scene.add(car_model);
+
+          anims = ['forwards', 'backwards']; 
+          loadAnimation(loader);
+        });
+
+        // const gyro = new THREE.Gyroscope();
+        // gyro.add(camera);
+        // loader.root.add(gyro);
+
+
+        // Adding light to the car model
+        var model_light = new THREE.HemisphereLight(0xffffff, 0x000000, 0.1);
+
+        // Add the objects to the scene
+        scene.add(skybox);
+        scene.add(plane);
+        scene.add(light);
+        scene.add( new THREE.CameraHelper( light.shadow.camera ) );
+        scene.add(model_light);
+
+        animate();
+      }
+
+      function animate() {
+        requestAnimationFrame(animate);
+        render();
+
+        if(main_menu) { // Display rotational view whilst in main menu
+            rotation += 0.0045;
+            camera_vector
+            camera.position.x = Math.sin(rotation) * 2000;
+            camera.position.y = 700
+            camera.position.z = Math.cos(rotation) * 2000;
+            camera.lookAt(new THREE.Vector3(86 , -10, 300));
+
+        }else {
+            if(controls_value == 1) { // Fixed camera view
+              if(THREE.OrbitControls.enabled) {
+                THREE.OrbitControls.enabled = false;
+              }
+
+              camera.position.set(x_camera + 200, y_camera, z_camera - 50); // Adjust slightly behind car position
+              camera.lookAt(look_vector)
+            }else if(controls_value == 2) {
+              THREE.OrbitControls.enabled = true;
+            }else if(controls_value == 3) { // Top down view (maybe?)
+
+            }
+        }
+
+        // Settings
+        if(fog) {
+          scene.fog = new THREE.Fog( 0xffffff, 100, 4000 );
+        }else {
+          scene.fog = new THREE.Fog( 0xffffff, 100000, 400000 );
+        }
+
+        carController();
+        // console.log(increment);
+        // console.log(backwards);
+
+        // Reduce rolling speed due to resistance against road
+        if(increment > 0.1) { // Forward motion decrease
+          increment -= FORWARD_RESISTANCE;
+        }else if(increment < -0.1) { // Backwards motion decrease
+          increment += BACKWARDS_RESISTANCE;
+        }else if(increment >= -0.15 && increment <= 0.15){ // Standstill
+          increment = 0;
+          controlKeys.forwards = false;
+          controlKeys.backwards = false;
+        }
+
+        car_model.position.x = x_car;
+        car_model.position.y = y_car;
+        car_model.position.z = z_car;
+      }
+
+      function render() {
+        renderer.render(scene,camera);
+      }
+
+      function keydown(e) {
+        if(!main_menu) {
+          switch(e.key) {
+            case '1': // Locked camera (third person)
+              controls_value = 1;
+              break;
+            case '2':
+              controls_value = 2;
+              break;
+            case 'w':
+            case 'ArrowUp':
+              if(controlKeys.backwards) { // Travelling backwards but forward key pressed
+                increment += 1.4;
+                if(increment > 0) { // Update backwards/forwards boolean values
+                  controlKeys.backwards = false;
+                  controlKeys.forwards = true;
+                }
+              }else { // From stationary, moving forwards
+                controlKeys.forwards = true;
+                increment += 0.9;
+              }
+              break;
+            case 's':
+            case 'ArrowDown':
+              if(controlKeys.forwards) { // Travelling forwards but backwards key pressed
+                increment -= 1;
+                if(increment < 0) { // Updating backwards/forwards boolean values
+                  controlKeys.forwards = false;
+                  controlKeys.backwards = true;
+                }
+              }else { // From stationary, moving backwards
+                controlKeys.backwards = true;
+                increment -= 0.7;
+              }
+              break;
+            case 'a':
+            case 'ArrowLeft':
+              controlKeys.left = true;
+              break;
+            case 'd':
+            case 'ArrowRight':
+              controlKeys.right = true;
+              break;
+            case 'f':
+              if(fog) {
+                fog = false;
+              }else {
+                fog = true;
+              }
+          }
+        }
+      }
+
+      function keyup(e) {
+        switch(e.key) {
+          case 'w':
+            // forwards = false;
+            // increment
+            break;
+          // case 's':
+          //   backwards = false;
+          //   x_car += 30;
+          //   x_look += 30;
+          //   x+= 30;
+          //   break;
+          case 'a':
+            controlKeys.left = false;
+            break;
+          case 'd':
+            controlKeys.right = false;
+            break;
+        }
+      }
+
+      function carController() {
+        if(controlKeys.forwards || controlKeys.backwards) {
+          x_car -= increment;
+          look_vector.x -= increment;
+          x_camera -= increment;
+        }
+        if(controlKeys.left) {
+          if(controlKeys.forwards) {
+            z_car += steering;
+            look_vector.z += steering;
+            camera_vector.z += steering+500;
+
+            car_model.rotateY(THREE.MathUtils.degToRad(1.3));
+            look_vector.applyAxisAngle(new THREE.Vector3(0, 1, 0), THREE.MathUtils.degToRad(0.5));
+            // camera.rotateX(THREE.MathUtils.degToRad(1.4));
+
+          }
+          // car_model.rotateY(0.05);
+          // var target = new THREE.Vector3(); // create once an reuse it
+
+          // car_model.getWorldPosition( target );
+          // console.log("Target: ", target);
+        }
+
+        if(controlKeys.right) {
+          var axis = new THREE.Vector3(0, 1, 0).normalize();
+          car_model.rotateOnAxis(axis, -0.05);
+
+        }
+
+      }
+
+      function audioStarted() {
+        AudioContext = window.AudioContext || window.webkitAudioContext ;
+        audioContext = new AudioContext();
+        audioContext.resume()
+      }
+
+      function onWindowResize() {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+
+        renderer.setSize( window.innerWidth, window.innerHeight );
+
+      }
+
+      function loadAnimation(loader) {
+        
+      }
+    </script>
+</body>
+</html>
