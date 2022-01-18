@@ -65,13 +65,12 @@ body {
   background-color: rgba(0,0,0,0.25);
 }
 
-#play_content, #how_play_content, #controls_content, #credits_content {
+#play_content, #campaign_content, #how_play_content, #controls_content, #credits_content {
   position: relative;
   width: 50%;
   height: 100%;
   display: none;
 
-  display: none;
   flex-direction: column;
   justify-content: center;
   align-items: center;
@@ -83,12 +82,31 @@ body {
   line-height: 35px;
 }
 
+#free_mode_button, #campaign_mode_button {
+  padding: 10px;
+  border-style: solid;
+  border-color: grey;
+  border-radius: 30px;
+  border-width: 1px;
+  filter: blur(0.5px);
+}
+
+#free_mode_button:hover, #campaign_mode_button:hover {
+  padding: 10px;
+  border-style: solid;
+  border-color: grey;
+  border-radius: 30px;
+  border-width: 1px;
+  filter: blur(0.5px);
+  background-color: rgba(0,0,0,0.25);
+}
+
 #back {
   position: relative;
-  bottom: 0;
+  bottom: 10px;
   width: 20%;
   height: 5%;
-  padding-top: 100px;
+  padding-top: 20px;
 }
 
 #leaderboard {
@@ -101,11 +119,6 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-
-  border-style: solid;
-  border-color: grey;
-  border-radius: 15px;
-  border-width: 2px;
 
   opacity: 0.25;
 
@@ -128,7 +141,7 @@ body {
   border-style: solid;
   border-bottom: 1px;
   border-left: none;
-  border-right: none;*/
+  border-right: none;
   border-color: white;
 }
 
@@ -155,21 +168,15 @@ body {
 }
 
 #challenges {
-  padding-top: 10px;
+  /*padding-top: 10px;*/
   align-items: center;
   justify-content: center;
   text-align: center;
   font-size: 15px;
 }
 
-#level_one {
+#level_one, #level_two, #level_three, #success_message {
   color: white;
-}
-#level_two {
-  display: none;
-}
-#level_three {
-  display: none;
 }
 
 #sighting_lap {
@@ -216,6 +223,7 @@ body {
   border-width: 1px;
   filter: blur(0.5px);
   margin-right: 20px;
+  background-color: rgba(0,0,0,0.25);
 }
 
 #no {
@@ -236,6 +244,7 @@ body {
   border-radius: 30px;
   border-width: 1px;
   filter: blur(0.5px);
+  background-color: rgba(0,0,0,0.25);
 }
 
 #outsideMap {
@@ -266,14 +275,6 @@ body {
   display: flex;
   flex-direction: row;
 
-  border-style: solid;
-  border-top: none;
-  border-bottom: none;
-  border-left: none;
-  border-right: none;
-  border-width: 1px;
-  border-radius: 10px;
-
   filter: blur(0.5px);
 }
 
@@ -296,10 +297,6 @@ body {
   font-size: 22px;
   color: white;
 
-  border-style: solid;
-  border-color: grey;
-  border-width: 1px;
-
   padding-top: 4px;
 }
 
@@ -317,7 +314,7 @@ body {
 
   border-style: solid;
   border-color: grey;
-  border-width: 1px;
+  border-width: 1px 1px 0 0;
 }
 
 #view {
@@ -334,5 +331,5 @@ body {
 
   border-style: solid;
   border-color: grey;
-  border-width: 1px;
+  border-width: 1px 0 0 1px;
 }
